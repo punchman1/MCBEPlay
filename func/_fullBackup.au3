@@ -20,6 +20,9 @@ Func _FullBackup()
    If DirCopy($src_dir, $dst_dir, 1) < 1 Then
 	  _log("Error Copying Save Folder: " & $src_dir & " > " & $dst_dir, $function_name, True)
 	  $error_found = True
+   Else
+	  ; DirCopy already includes packs. Copy again so a missed non-db file is filled in.
+	  _BDSCopyNonDbWorldFiles($dst_dir & "\")
    EndIf
 
    $save_time = TimerDiff($save_timer)
@@ -27,12 +30,7 @@ Func _FullBackup()
 
    If $error_found Then
 	  $result = "Full Save process failed [" & $save_time & " seconds]"
-	  _log("Full Save failed! [" & $save_time & " seconds]", $function_name, True)
-	  $dst_dir = "FAILED_" & $src_dir
-	  If DirMove($src_dir, $dst_dir, 1) < 1 Then
-		 _log("Error Moving Failed Folder: " & $src_dir & " > " & $dst_dir, $function_name, True)
-		 $error_found = True
-	  EndIf
+	  _log("Full Save failed! [" & $save_time & " seconds]. The live world was not moved.", $function_name, True)
 	  _BDSResponse($result)
    Else
 	  $result = "Full Backup Finished Succesfully [" & $save_time & " seconds]"

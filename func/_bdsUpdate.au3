@@ -60,7 +60,7 @@ Func _BDSCheckForUpdate($manual)
    EndIf
 
    Local $was_running = False
-   If WinExists($window_title) Or ProcessExists($server_file) Then
+   If WinExists($window_title) Or _BDSTrackedServerRunning() Then
 	  $was_running = True
    EndIf
 
@@ -282,25 +282,24 @@ EndFunc
 
 Func _BDSUpdateServerIsUp()
 
-   If ProcessExists($server_file) Then Return True
    If WinExists($window_title) Then Return True
+   If _BDSTrackedServerRunning() Then Return True
    Return False
 
 EndFunc
 
 Func _BDSUpdateKillLeftovers()
 
+   ; This install's bedrock PID only. Do not match bedrock_server.exe or bds.exe by name.
+   _BDSCloseTrackedServer(False)
    If WinExists($window_title) Then
+	  Local $helper = WinGetProcess($window_title)
 	  WinClose($window_title)
 	  Sleep(1000)
-   EndIf
-   If ProcessExists("bds.exe") Then
-	  ProcessClose("bds.exe")
-	  Sleep(500)
-   EndIf
-   If ProcessExists($server_file) Then
-	  ProcessClose($server_file)
-	  Sleep(500)
+	  If $helper > 0 And WinExists($window_title) And ProcessExists($helper) Then
+		 ProcessClose($helper)
+		 Sleep(300)
+	  EndIf
    EndIf
 
 EndFunc
@@ -323,6 +322,7 @@ Func _BDSUpdateWorldBackup()
 	  _log("World backup failed: " & $src, $function_name, True)
 	  Return False
    EndIf
+   _BDSCopyNonDbWorldFiles($dst & "\")
    If FileExists($backedup_file) Then FileDelete($backedup_file)
    Local $h = FileOpen($backedup_file, 2)
    FileClose($h)

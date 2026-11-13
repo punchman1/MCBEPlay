@@ -5,119 +5,106 @@ Func _BDSRollback()
 
    _BDSBusy(True)
 
-   $src_path = $world_dir & "\" & $level_name
-   Local $db_path = $src_path & "\db"
+   Local $world = $world_dir & "\" & $level_name
+   Local $db_path = $world & "\db"
    Local $modified = FileGetTime($db_path, $FT_MODIFIED, $FT_STRING)
+   Local $failed_copy = $save_dir & "\FAILED_" & $level_name & "-" & $modified
 
-   $dst_path = $save_dir & "\FAILED_" & $level_name & "-" & $modified
-
-   ; Copy World Folder to Failed Saves Folder
-   Local $copied = DirCopy($src_path, $dst_path, 1)
+   ; Keep a copy of the current world before anything is deleted.
+   Local $copied = DirCopy($world, $failed_copy, 1)
    If $copied == 0 Then
 	  _log("Error copying world directory to failed saves", $function_name, True)
 	  _BDSResponse("Error copying world directory to failed saves")
-	  ; Remove busy signal
 	  _BDSBusy(False)
 	  Return False
    EndIf
 
-   ; 2. Check Number of Saves
-   Local $saves = _FileListToArrayRec($save_dir, "*|FAILED_*;ROLLBACK_*", $FLTAR_FILESFOLDERS, $FLTAR_NORECUR, $FLTAR_SORT)
-   Local $save
-   Local $save_file
-
-   ; 3. If < 1 then Exit & Error
-   If Not IsArray($saves) Then
-	  _log("No saves available. Unable to roll back", $function_name, True)
-	  _BDSResponse("No saves available. Unable to roll back")
-	  ; Remove busy signal
+   Local $save_file = _BDSSelectRollbackSave()
+   If $save_file = "" Then
+	  _log("No complete backup to roll back to. The live world was not changed.", $function_name, True)
+	  _BDSResponse("No complete backup available. Live world was not changed.")
 	  _BDSBusy(False)
 	  Return False
-   ElseIf $saves[0] < 2 Then
-	  ; If there is only one save file there is no point in working the array, just use this data
-	  _log("Save found. Rolling back...", $function_name, False, True)
-	  $save = $saves[1]
-	  $save_file = $save
-   Else
+   EndIf
+   _log("Selected complete backup: " & $save_file, $function_name, False, True)
 
-	  _log("Saves Found. Sorting Data", $function_name, False, False)
-	  ; If Array not empty then loop to get file dates
-	  Local $created
-	  Local $lastcreated = 0
-	  Local $latest_save
-
-	  For $i = 1 To UBound($saves)-1
-
-		 ; Remove trailing slash from directory
-		 $save = $saves[$i]
-		 $created = FileGetTime($save_dir & "\" & $save, $FT_CREATED, 1)
-		 If $created > $lastcreated Then
-			$lastcreated = $created
-			$latest_save = $save
-		 EndIf
-	  Next
-
-	  $save_file = $latest_save
-	  _log("Latest Save File: " & $save_file, $function_name, False, True)
-
+   ; Stage and validate before the live db is touched.
+   Local $stage = $tmp_dir & "\rollback_stage"
+   DirRemove($stage, 1)
+   If DirCopy($save_dir & "\" & $save_file, $stage, 1) = 0 Then
+	  _log("Could not stage " & $save_file & ". The live world was not changed.", $function_name, True)
+	  _BDSResponse("Could not stage the backup. Live world was not changed.")
+	  _BDSBusy(False)
+	  Return False
+   EndIf
+   If Not FileExists($stage & "\level.dat") Or Not FileExists($stage & "\db") Then
+	  _log("Staged backup is missing level.dat or db. The live world was not changed.", $function_name, True)
+	  DirRemove($stage, 1)
+	  _BDSResponse("Staged backup is incomplete. Live world was not changed.")
+	  _BDSBusy(False)
+	  Return False
    EndIf
 
-   ; 4. If > 1 then copy latest save to world folder
-   ; First remove all db files - deleted dir - world_path\level_name\db
-   $purge_path = $world_dir & "\" & $level_name & "\db"
-   _log("Purging Existing DB files from World Folder", $function_name, False)
-
-   ; Check db folder exists to purge
-   If FileExists($purge_path) Then
-
-	  Local $purge = DirRemove($purge_path, 1)
-	  If $purge == 0 Then
-		 _log("Unable to delete existing DB data", $function_name, True)
-	  Else
-		 _log("Existing DB files Purged Succesfully", $function_name, False, True)
-
+   _log("Staged backup validated. Replacing the live world db.", $function_name, False, True)
+   If FileExists($db_path) Then
+	  If DirRemove($db_path, 1) = 0 Then
+		 _log("Unable to delete existing DB data. The live world was left in place.", $function_name, True)
+		 DirRemove($stage, 1)
+		 _BDSResponse("Unable to delete existing DB data")
+		 _BDSBusy(False)
+		 Return False
 	  EndIf
-   Else
-	  _log("No files to purge", $function_name, False)
    EndIf
 
-   _log("Copying Save Data to World File", $function_name, False)
-
-   Local $src_path = $save_dir & "\" & $save_file
-   Local $dst_path = $world_dir & "\" & $level_name
-
-   Local $copy = DirCopy($src_path, $dst_path, $FC_OVERWRITE)
+   Local $copy = DirCopy($stage, $world, $FC_OVERWRITE)
    If $copy == 0 Then
-	  _log("Error copying save data to world directory", $function_name, True)
+	  _log("Error copying staged save onto the world. Restoring the pre-rollback copy.", $function_name, True)
+	  DirCopy($failed_copy, $world, 1)
+	  DirRemove($stage, 1)
 	  _BDSResponse("Error copying save data to world directory")
-	  ; Remove busy signal
 	  _BDSBusy(False)
 	  Return False
-   Else
-	  _log("Save data copied to world directory succesfully", $function_name, False, True)
    EndIf
+   _log("Save data copied to world directory succesfully", $function_name, False, True)
+   DirRemove($stage, 1)
 
-   ; 5. Move copied Rollback folder to saves/title/ROLLBACK_level-timestamp so we don't use this one again
-   _log("Renaming bolled back save folder to add ROLLBACK_ prefix", $function_name, False)
-   $dst_path = $save_dir & "\ROLLBACK_" & $save_file
-   $move = DirMove($src_path, $dst_path, $FC_OVERWRITE)
-
-   If $move == 0 Then
-	  _log("Error renaming failed save", $function_name, True)
-	  _BDSResponse("Error renaming failed save")
-	  ; Remove busy signal
+   Local $rolled = $save_dir & "\ROLLBACK_" & $save_file
+   _log("Renaming rolled back save folder to add ROLLBACK_ prefix", $function_name, False)
+   If DirMove($save_dir & "\" & $save_file, $rolled, $FC_OVERWRITE) = 0 Then
+	  _log("Error renaming rolled back save", $function_name, True)
+	  _BDSResponse("Error renaming rolled back save")
 	  _BDSBusy(False)
 	  Return False
-   Else
-	  _log("Rolled back save folder renamed: " & $dst_path, $function_name, False, True)
    EndIf
 
    _log("Rollback Completed Succesfully", $function_name, False, True)
    _BDSResponse("Rollback Completed Succesfully")
-   ; Remove busy signal
    _BDSBusy(False)
    Return True
 
 EndFunc
 
+Func _BDSSelectRollbackSave()
 
+   Local $saves = _FileListToArrayRec($save_dir, "*|FAILED_*;ROLLBACK_*", $FLTAR_FOLDERS, $FLTAR_NORECUR, $FLTAR_SORT, $FLTAR_NOPATH)
+   If Not IsArray($saves) Then Return ""
+   Local $best = ""
+   Local $best_time = 0
+   Local $i
+   For $i = 1 To $saves[0]
+	  Local $name = $saves[$i]
+	  If StringRight($name, 1) = "\" Then $name = StringTrimRight($name, 1)
+	  Local $folder = $save_dir & "\" & $name
+	  If _BDSBackupIsComplete($folder) = False Then
+		 _log("Skipping partial backup " & $name, "Rollback Server", False, True)
+		 ContinueLoop
+	  EndIf
+	  Local $created = FileGetTime($folder, $FT_CREATED, 1)
+	  If $created > $best_time Then
+		 $best_time = $created
+		 $best = $name
+	  EndIf
+   Next
+   Return $best
+
+EndFunc

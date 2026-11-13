@@ -66,8 +66,11 @@ Func _BDSStop($restart=False, $skip_backup=False)
    WEnd
 
    WinClose($window_title)
-   $iPID = ProcessExists($server_file)		; Just incase process stays open
-   ProcessClose($iPID)
+   _BDSCloseTrackedServer(True)
+   If $PID > 0 And ProcessExists($PID) Then
+	  ProcessClose($PID)
+	  $PID = 0
+   EndIf
    FileDelete($command_file)
    FileDelete($member_file)
    FileDelete($working_file)

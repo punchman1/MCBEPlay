@@ -1,14 +1,130 @@
 Func _BDSExit()
    Local $function_name = "BDS Exit"
    _log("Exit Called", $function_name)
+   ; A crash during truncate used to skip save resume and leave BDS in save hold.
+   If $save_hold_active = True And $PID > 0 Then
+	  $save_hold_active = False
+	  StdinWrite($PID, "save resume" & @LF)
+	  Sleep(400)
+	  _log("Sent save resume during exit", $function_name, False, True)
+   EndIf
    WinClose($window_title)
-   $iPID = ProcessExists($server_file)		; Just incase process stays open
-   ProcessClose($iPID)
+   ; Close only the bedrock PID this instance spawned, then our cmd.exe.
+   _BDSCloseTrackedServer(True)
+   If $PID > 0 And ProcessExists($PID) Then
+	  ProcessClose($PID)
+   EndIf
    FileDelete($command_file)
    FileDelete($member_file)
    FileDelete($working_file)
    _BDSBusy(False)
    Exit
+EndFunc
+
+; $trusted is True only for a PID this process just spawned.
+; A PID read from disk must match this install's bedrock_server.exe path.
+Func _BDSCloseTrackedServer($trusted = False)
+   Local $procId = $server_pid
+   If $procId <= 0 And FileExists($server_pid_file) Then
+	  $procId = Int(StringStripWS(FileRead($server_pid_file), 3))
+   EndIf
+   If $procId > 0 And ProcessExists($procId) Then
+	  If $trusted Or _BDSPidIsOurExecutable($procId) Then
+		 _log("Closing bedrock_server PID " & $procId, "Server PID", False, True)
+		 ProcessClose($procId)
+		 Sleep(300)
+	  Else
+		 _log("PID " & $procId & " is not this install's bedrock_server.exe. Not closing it.", "Server PID", False, True)
+	  EndIf
+   EndIf
+   $server_pid = 0
+   FileDelete($server_pid_file)
+EndFunc
+
+Func _BDSTrackedServerRunning()
+   Local $procId = $server_pid
+   If $procId <= 0 And FileExists($server_pid_file) Then
+	  $procId = Int(StringStripWS(FileRead($server_pid_file), 3))
+   EndIf
+   If $procId <= 0 Or Not ProcessExists($procId) Then Return False
+   Local $path = _BDSPidExecutable($procId)
+   ; A live PID we recorded cannot have been recycled. If WMI cannot name it,
+   ; still treat it as up so an update does not overwrite a running server.
+   If $path = "" Then Return True
+   If StringLower($path) = StringLower($server) Then Return True
+   Return False
+EndFunc
+
+Func _BDSPidExecutable($procId)
+   If $procId <= 0 Then Return ""
+   Local $oWMI = ObjGet("winmgmts:\\.\root\CIMV2")
+   If Not IsObj($oWMI) Then Return ""
+   Local $col = $oWMI.ExecQuery("SELECT ExecutablePath FROM Win32_Process WHERE ProcessId = " & Int($procId))
+   If Not IsObj($col) Then Return ""
+   For $obj In $col
+	  Return $obj.ExecutablePath
+   Next
+   Return ""
+EndFunc
+
+Func _BDSPidIsOurExecutable($procId)
+   Local $path = _BDSPidExecutable($procId)
+   If $path = "" Then Return False
+   If StringLower($path) = StringLower($server) Then Return True
+   Return False
+EndFunc
+
+Func _BDSRememberServerPid()
+   Local $child = 0
+   Local $try = 0
+   While $try < 20
+	  $child = _BDSChildServerPid($PID)
+	  If $child > 0 Then ExitLoop
+	  Sleep(250)
+	  $try = $try + 1
+   WEnd
+   If $child > 0 Then
+	  $server_pid = $child
+	  Local $h = FileOpen($server_pid_file, 2)
+	  FileWrite($h, String($child))
+	  FileClose($h)
+	  _log("Tracking bedrock_server PID " & $child, "Server PID", False, True)
+   Else
+	  _log("Could not find the bedrock_server child of cmd PID " & $PID, "Server PID", True)
+   EndIf
+   Return $child
+EndFunc
+
+Func _BDSChildServerPid($parentPid)
+   If $parentPid <= 0 Then Return 0
+   Local $oWMI = ObjGet("winmgmts:\\.\root\CIMV2")
+   If Not IsObj($oWMI) Then Return 0
+   Local $col = $oWMI.ExecQuery("SELECT ProcessId, Name, ExecutablePath FROM Win32_Process WHERE ParentProcessId = " & Int($parentPid))
+   If Not IsObj($col) Then Return 0
+   For $obj In $col
+	  If StringLower($obj.Name) <> StringLower($server_file) Then ContinueLoop
+	  If $obj.ExecutablePath = "" Or StringLower($obj.ExecutablePath) = StringLower($server) Then
+		 Return Int($obj.ProcessId)
+	  EndIf
+   Next
+   Return 0
+EndFunc
+
+Func _BDSCloseSpawnedProcesses()
+   Local $child = _BDSChildServerPid($PID)
+   If $child > 0 Then
+	  ProcessClose($child)
+	  Sleep(300)
+   ElseIf $server_pid > 0 And ProcessExists($server_pid) Then
+	  ProcessClose($server_pid)
+	  Sleep(300)
+   EndIf
+   $server_pid = 0
+   FileDelete($server_pid_file)
+   If $PID > 0 And ProcessExists($PID) Then
+	  ProcessClose($PID)
+	  Sleep(300)
+   EndIf
 EndFunc
 
 ; :- 7/2/20 ### Adding new system to send & receive data from server to try figure out why crashing during a save
@@ -191,7 +307,11 @@ EndFunc
 Func _BDSFindMember($data)
    Local $function_name = "Find Member"
    ;[2019-11-17 10:42:08 INFO] Player connected: foxynotail, xuid: 2535421815690915
-   ;[2019-11-17 10:42:08 INFO] Player discconnected: foxynotail, xuid: 2535421815690915
+   ;[2019-11-17 10:42:08 INFO] Player disconnected: foxynotail, xuid: 2535421815690915
+   ; Spawned and PartyIdUpdate also contain "Player " and are not join/leave.
+   If StringInStr($data, "Player connected:", 2) = 0 And StringInStr($data, "Player disconnected:", 2) = 0 And StringInStr($data, "Player discconnected:", 2) = 0 Then
+	  Return
+   EndIf
    Local $keyword = "Player "
    Local $keylen = StringLen($keyword)
    Local $pos
@@ -200,11 +320,28 @@ Func _BDSFindMember($data)
    If $pos > 1 Then
 	  Local $string = StringRight($data, StringLen($data)-($pos+$keylen)+1)
 	  Local $split = StringSplit($string, ":")
+	  If $split[0] < 2 Then Return
 	  ; [0] = Count, [1] = connected/disconnected, [2] = player, xuid, [3] = xuid
-	  Local $action = StringStripWS($split[1], 8)
-	  Local $player_split = StringSplit($split[2], ",")
-	  Local $player = StringStripWS($player_split[1], 8)
-	  Local $xuid = StringStripWS($split[2], 8)
+	  Local $action = StringLower(StringStripWS($split[1], 3))
+	  If $action = "discconnected" Then $action = "disconnected"
+	  If $action <> "connected" And $action <> "disconnected" Then Return
+	  Local $name_part = $split[2]
+	  Local $comma = StringInStr($name_part, ",")
+	  If $comma > 0 Then $name_part = StringLeft($name_part, $comma - 1)
+	  Local $player = StringStripWS($name_part, 3)
+	  If $player = "" Then Return
+	  Local $xuid = ""
+	  Local $xuid_pos = StringInStr($data, "xuid:", 2)
+	  If $xuid_pos > 0 Then
+		 $xuid = StringStripWS(StringMid($data, $xuid_pos + 5), 1)
+		 Local $xcut = StringInStr($xuid, ",")
+		 If $xcut > 0 Then $xuid = StringLeft($xuid, $xcut - 1)
+		 $xcut = StringInStr($xuid, " ")
+		 If $xcut > 0 Then $xuid = StringLeft($xuid, $xcut - 1)
+		 $xuid = StringStripWS($xuid, 3)
+	  ElseIf $split[0] >= 3 Then
+		 $xuid = StringStripWS($split[3], 3)
+	  EndIf
 
 	  ; If disconnecting remove members from temp member file
 	  ; If connecting add member to temp member file

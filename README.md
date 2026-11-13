@@ -13,7 +13,9 @@ This fork targets current Bedrock Dedicated Server builds, including the 1.26 lo
 
 It also treated a blank health-check line (`Unknown command`) and the `cmd` prompt left after a clean quit as fatal. Details and the new options are in CHANGELOG.md. False-positive handling is adapted from [ZanderCowboy/MCBEPlay](https://github.com/ZanderCowboy/MCBEPlay) (August 2026).
 
-`auto_save` still defaults to false. Live backups use `save hold` / `save query` / `save resume`. BDS-2733 (MANIFEST and `.log` locked during save hold) was closed in 2022: https://mojira.dev/BDS-2733
+`auto_save` still defaults to false. Live backups use `save hold` / `save query` / `save resume`, and also copy pack JSON, pack folders, and other non-db world files. BDS-2733 (MANIFEST and `.log` locked during save hold) was closed in 2022: https://mojira.dev/BDS-2733
+
+`auto_restart=off` (or `false`) and `restart_interval=0` turn scheduled restarts off.
 
 Automatic BDS updates are off unless `options.txt` sets `auto_update`. There is no telemetry. The Check for Update button uses Mojang's download API (`serverBedrockWindows` only).
 

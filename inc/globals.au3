@@ -41,7 +41,10 @@ Global $timestamp = @YEAR&@MON&@MDAY&@HOUR&@MIN&@SEC ; YYYYMMDDHHMMSS
 Global $server_status = False 		; False = Offline, True = Online
 Global $server_error = False		; False = No Error, Other = Get from error file ERROR, CRASH, UNRESPONSIVE
 Global $server_working = False		; False = Idle, True = Working
-Global $PID							; Process ID Of Server
+Global $PID = 0						; cmd.exe started by this instance (stdin/stdout)
+Global $server_pid = 0				; bedrock_server.exe PID spawned by this instance
+Global $server_pid_file = $tmp_dir & "\server.pid"
+Global $save_hold_active = False	; True between save hold and save resume
 Global $members_online = 0			; Number of players connected
 Global $members_online_last = 0		; For checking if a member has just joined or left (autosave)
 Global $min_save_time = 2			; Minutes since last save when a new save is allowed to trigger

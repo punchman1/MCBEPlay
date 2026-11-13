@@ -59,6 +59,10 @@ Func _BDSBackup($response)
 			$error_found = True
 		 EndIf
 	  Next
+	  ; save query lists db files and level.dat. Packs and other world files are not in that list.
+	  If _BDSCopyNonDbWorldFiles($dst_dir) = False Then
+		 $error_found = True
+	  EndIf
    EndIf
 
    Local $result = "Files copied"
@@ -86,21 +90,29 @@ Func _BDSBackup($response)
 	  EndIf
 
 	  If $dst_size > $req_size Then
-		 Local $low = $req_size
-		 Local $high = 0
-		 If $req_size >= 4294967296 Then
-			$high = Int($req_size / 4294967296)
-			$low = $req_size - ($high * 4294967296)
-		 EndIf
 		 Local $hFile = _WinAPI_CreateFile($file, 2, 4)
 		 If $hFile = 0 Then
 			_log("Could not open " & $file & " to truncate", $function_name, True)
 			$error_found = True
 			ContinueLoop
 		 EndIf
-		 _WinAPI_SetFilePointer($hFile, $low, 0, $high)
-		 _WinAPI_SetEndOfFile($hFile)
+		 ; AutoIt 3.3.16 _WinAPI_SetFilePointer takes ($hFile, $iPos, $iMethod).
+		 ; A fourth argument is a runtime error and kills the helper inside save hold.
+		 Local $moved = False
+		 If $req_size > 2147483647 Then
+			Local $aCall = DllCall("kernel32.dll", "bool", "SetFilePointerEx", "handle", $hFile, "int64", $req_size, "int64*", 0, "dword", 0)
+			If Not @error And IsArray($aCall) And $aCall[0] Then $moved = True
+		 Else
+			Local $pointer = _WinAPI_SetFilePointer($hFile, $req_size, 0)
+			If Not @error And $pointer <> -1 Then $moved = True
+		 EndIf
+		 If $moved Then _WinAPI_SetEndOfFile($hFile)
 		 _WinAPI_CloseHandle($hFile)
+		 If $moved = False Then
+			_log("Could not move the file pointer to truncate " & $file, $function_name, True)
+			$error_found = True
+			ContinueLoop
+		 EndIf
 
 		 Local $dFileSize = FileGetSize($file)
 		 If $req_size <> $dFileSize Then
@@ -260,5 +272,83 @@ Func _BDSResolveSaveEntry($path, ByRef $src, ByRef $rel)
 	  Return True
    EndIf
    Return False
+
+EndFunc
+
+; Files save query does not list: pack JSON, behavior_packs, resource_packs,
+; world_icon, levelname.txt, and any other non-db world file. Skip names the
+; query copy already created so a truncated level.dat is not replaced.
+Func _BDSCopyNonDbWorldFiles($dst_dir)
+
+   Local $function_name = "Backup World Extras"
+   Local $world = $world_dir & "\" & $level_name
+   If $level_name = "" Or Not FileExists($world) Then
+	  _log("World folder missing. Pack files were not copied.", $function_name, True)
+	  Return False
+   EndIf
+   Local $items = _FileListToArray($world, "*", $FLTA_FILESFOLDERS)
+   If Not IsArray($items) Then Return True
+   Local $ok = True
+   Local $i
+   For $i = 1 To $items[0]
+	  Local $name = $items[$i]
+	  If StringLower($name) = "db" Then ContinueLoop
+	  Local $src = $world & "\" & $name
+	  Local $dst = $dst_dir & $name
+	  Local $attr = FileGetAttrib($src)
+	  If StringInStr($attr, "D") Then
+		 If DirCopy($src, $dst, 1) = 0 Then
+			_log("Error copying world folder " & $src, $function_name, True)
+			$ok = False
+		 Else
+			_log("Copied world folder " & $name, $function_name, False, True)
+		 EndIf
+	  Else
+		 If FileExists($dst) Then ContinueLoop
+		 If FileCopy($src, $dst, 9) = 0 Then
+			_log("Error copying world file " & $src, $function_name, True)
+			$ok = False
+		 Else
+			_log("Copied world file " & $name, $function_name, False, True)
+		 EndIf
+	  EndIf
+   Next
+   Return $ok
+
+EndFunc
+
+Func _BDSBackupIsComplete($folder)
+
+   Local $root = $folder
+   If StringRight($root, 1) = "\" Then $root = StringTrimRight($root, 1)
+   If Not FileExists($root & "\level.dat") Then Return False
+   If Not FileExists($root & "\db") Then Return False
+   Local $base = StringRegExpReplace($root, "^.*\\", "")
+   ; A stopped-server copy is the whole world folder, including packs.
+   If StringLeft($base, 5) = "FULL_" Or StringLeft($base, 11) = "DAILY_FULL_" Then Return True
+   ; A live save is partial when the world still has pack or other non-db files
+   ; that this backup does not contain.
+   Local $live = $world_dir & "\" & $level_name
+   Local $items = _FileListToArray($live, "*", $FLTA_FILESFOLDERS)
+   If Not IsArray($items) Then Return True
+   Local $i
+   For $i = 1 To $items[0]
+	  Local $n = StringLower($items[$i])
+	  If $n = "db" Or $n = "level.dat" Or $n = "level.dat_old" Then ContinueLoop
+	  If Not FileExists($root & "\" & $items[$i]) Then Return False
+   Next
+   Return True
+
+EndFunc
+
+Func _BDSReleaseSaveHold()
+
+   If $save_hold_active = True Then
+	  _BDSStdIn("save resume" & @LF)
+	  $save_hold_active = False
+	  Sleep(500)
+	  _BDSProcessOutput(True)
+	  _log("Sent save resume", "Save Server", False, True)
+   EndIf
 
 EndFunc

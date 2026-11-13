@@ -6,6 +6,7 @@ Func _BDSSave($auto_backup=False)
 
    ; Hold, then poll save query until the file list arrives. Mojang documents
    ; that the first query often returns "A previous save has not been completed."
+   $save_hold_active = True
    _BDSStdIn("save hold" & @LF)
    Sleep(500)
    _BDSProcessOutput(True)
@@ -39,11 +40,9 @@ Func _BDSSave($auto_backup=False)
 	  _BDSServerChat("Error Saving")
    EndIf
 
-   ; Always release the hold, including when the query never returned a list.
+   ; Always release the hold, including when the query or backup failed.
    ; The copy must finish before this. Files can change again after resume.
-   _BDSStdIn("save resume" & @LF)
-   Sleep(500)
-   _BDSProcessOutput(True)
+   _BDSReleaseSaveHold()
 
    If $success = True And $auto_backup = False Then
 	  _BDSServerChat("Saved")

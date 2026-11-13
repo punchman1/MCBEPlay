@@ -1,6 +1,6 @@
 Func _Exit()
 
-   If WinExists($window_title) OR ProcessExists($server_file) Then
+   If WinExists($window_title) Or _BDSTrackedServerRunning() Then
 	  MsgBox(48, "Alert", "The server is still running." & @CRLF & "Please use the Stop command or button to stop the server")
    EndIf
 
@@ -128,6 +128,9 @@ EndFunc
 Func _autoRestart()
 
    Local $function_name = "Auto Restart"
+   If _BDSAutoRestartEnabled() = False Then
+	  Return False
+   EndIf
    _log($function_name & " Function Started", $function_name)
 
    If $server_status = False Then

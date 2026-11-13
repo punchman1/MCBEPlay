@@ -61,13 +61,14 @@ backup_interval=60
 ########################################
 
 # Auto Restart System
-# Options: interval|time
-# Setting auto_restart to "interval" will make the server restart every "restart_interval" hours.
-# Setting it to "time" will make the server restart at the times specified in "restart_times".
+# Options: time|interval|off
+# time: restart at the times in restart_times.
+# interval: restart every restart_interval hours. restart_interval=0 disables this.
+# off, false, or none: do not schedule restarts.
 auto_restart=time
 
 # If you would prefer the server to restart at specific intervals, then set the number of hours between restarts.
-# Integer: restart every X hours				
+# Integer: restart every X hours. 0 disables interval restarts.
 restart_interval=12
 
 # If you would prefer the server to restart at specific times of day then use the time option and list the times here

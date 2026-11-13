@@ -17,14 +17,14 @@ Func _BDSStart()
 	  FileDelete($restart_file)
    EndIf
 
-   ; Do a quick check to make sure the bedrock_server.exe process is not running. Somehow this can end up running on it's own
-   If ProcessExists($server_file) Then
-	  _log("A server process is already running", $function_name, True)
-	  $iPID = ProcessExists($server_file)		; Just incase process stays open
-	  ProcessClose($iPID)
+   ; Close a leftover from this install only. Another bedrock_server.exe on this PC is left alone.
+   If _BDSTrackedServerRunning() Then
+	  _log("This install's previous bedrock_server is still running. Closing that PID only.", $function_name, True)
+	  _BDSCloseTrackedServer(False)
 	  Sleep(300)
-	  ;MsgBox(48, "Alert", "A server process is already running")
-	  Exit
+   Else
+	  FileDelete($server_pid_file)
+	  $server_pid = 0
    EndIf
 
    ; Send busy signal
@@ -40,11 +40,8 @@ Func _BDSStart()
 
 	  If $result <> True Then
 		 _log("Start process failed", $function_name, True)
-		 If $attempt < 3 Then ; If first and second try doesn't work then kill processes and try again
-			WinClose($window_title)
-			WinClose($server_file)
-			$iPID = ProcessExists($server_file)		; Just incase process stays open
-			ProcessClose($iPID)
+		 If $attempt < 3 Then ; If first and second try doesn't work then kill this instance and try again
+			_BDSCloseSpawnedProcesses()
 			$attempt = $attempt + 1
 			Sleep(300)
 		 Else
@@ -84,6 +81,7 @@ Func _BDSStartProcess()
    ;Global $PID = Run(@ComSpec & " /K " & $server, $server_dir, @SW_SHOW, $STDIN_CHILD + $STDOUT_CHILD) ; Testing
    Global $PID = Run(@ComSpec & " /K " & $server, $server_dir, @SW_HIDE, $STDIN_CHILD + $STDOUT_CHILD) ; Release
    Sleep(1000) ; !!! sleep !! or process is NOT in the list yet !!
+   _BDSRememberServerPid()
 
    $title = _serverGetTitle($PID)
    WinSetTitle($title, "", $window_title)

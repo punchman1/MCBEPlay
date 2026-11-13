@@ -1,5 +1,13 @@
 # Changelog
 
+## 3.6-cpx fixes after BDS 1.26.63.1 testing
+
+- Player join/leave logs the XUID after `xuid:`. `Player Spawned` and `Player PartyIdUpdate` are not treated as join or leave.
+- Live backups also copy non-db world files: pack JSON, `behavior_packs/`, `resource_packs/`, `world_icon`, `levelname.txt`, and anything else except `db/` (that still comes from `save query` and is truncated). Full backups copy those too. Rollback will not select a live save that is missing non-db files the world still has, and it stages the backup before deleting the live `db` folder.
+- Stop, exit, and update close the bedrock PID this instance started. They do not match `bedrock_server.exe` or `bds.exe` by name.
+- `_purgeFolders` uses the loop index it actually has. `auto_restart=off` (also `false` or `none`) and `restart_interval=0` disable scheduled restarts.
+- Live-backup truncate calls `_WinAPI_SetFilePointer` with three arguments. The old fourth argument aborted the helper and left the server in `save hold`. `save resume` is sent again on exit if a hold is still open.
+
 ## 3.6-cpx
 
 Fork of FoxyNoTail's MCBEPlay 3.5 (GPL-3.0). Foxy's credits and license are unchanged.

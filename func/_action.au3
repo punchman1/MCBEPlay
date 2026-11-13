@@ -181,6 +181,25 @@ Func _actionSetData($key, $val)
    FileClose($oFile)
 EndFunc
 
+Func _BDSAutoRestartEnabled()
+
+   Local $mode = ""
+   If IsDeclared("auto_restart") Then $mode = StringLower(StringStripWS($auto_restart, 3))
+   ; off / false / none disable the schedule. interval with restart_interval=0 does too.
+   If $mode = "false" Or $mode = "off" Or $mode = "none" Or $mode = "0" Or $mode = "disabled" Then
+	  Return False
+   EndIf
+   If $mode = "time" Then Return True
+   Local $hours = 0
+   If IsDeclared("restart_interval") Then $hours = Number($restart_interval)
+   If $mode = "interval" Or $mode = "" Then
+	  If $hours > 0 Then Return True
+	  Return False
+   EndIf
+   Return False
+
+EndFunc
+
 Func _actionCheckForUpdate($manual = False)
    _BDSCheckForUpdate($manual)
 EndFunc
