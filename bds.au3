@@ -2,7 +2,7 @@
 
  AutoIt Version: 3.3.14.5
  Author:         FoxyNotail
- Version:Local	 3.5
+ Version:Local	 3.6-cpx
  Date: 			 14/4/02
 
  Script Function:
@@ -47,9 +47,8 @@ While 1
 	  $delay_timer = TimerInit()
    EndIf
 
-   ; Do this every 1 minute
-   ; ### 6/2/20 - Turned this off
-   If TimerDiff($response_timer) > 60000 Then ; 2 minutes
+   ; Health check every 60 seconds. Sends "list", not a blank line.
+   If TimerDiff($response_timer) > 60000 Then
 	  _BDSCheckResponse()
 	  $response_timer = TimerInit()
    EndIf

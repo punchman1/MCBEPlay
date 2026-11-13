@@ -1,0 +1,6 @@
+*.exe
+*.bak
+tmp/
+logs/
+saves/
+BDS/

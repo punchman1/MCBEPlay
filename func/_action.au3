@@ -122,7 +122,15 @@ EndFunc
 Func _actionReloadWhitelist()
 
    Global $server_working = True
-   _serverSendCommand("whitelist reload")
+   ; Bedrock renamed whitelist to allowlist in 1.18.10. The console command
+   ; is "allowlist reload". Older servers only accept "whitelist reload".
+   Local $cmd = "allowlist reload"
+   Local $ver = _BDSInstalledVersion()
+   If $ver <> "" And _BDSVersionCompare($ver, "1.18.10.0") < 0 Then
+	  $cmd = "whitelist reload"
+   EndIf
+   _log("Reloading allowlist with: " & $cmd, "Reload Whitelist", False, True)
+   _serverSendCommand($cmd)
 
    Global $server_working = False
 EndFunc
@@ -173,6 +181,14 @@ Func _actionSetData($key, $val)
    FileClose($oFile)
 EndFunc
 
+Func _actionCheckForUpdate($manual = False)
+   _BDSCheckForUpdate($manual)
+EndFunc
+
+Func _actionAutoUpdate()
+   _BDSAutoUpdate()
+EndFunc
+
 Func _actionKeepAlive()
 
    Local $function_name = "Keep Alive"
@@ -186,6 +202,9 @@ Func _actionKeepAlive()
    EndIf
 
    ; If server not detected running after 5 seconds then autostart
+   If FileExists($updating_file) Or $update_in_progress Then
+	  Return
+   EndIf
    If $keepalive = "true" AND $keepalive_triggered = False AND $server_stopped = False AND $server_status = False AND $server_working = False Then
 	  Global $keepalive_triggered = True
 	  Global $keepalive_timer = TimerInit()

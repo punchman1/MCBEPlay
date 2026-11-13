@@ -1,17 +1,36 @@
 # MCBEPlay
 Server GUI &amp; Management for Minecraft Bedrock
 
-# MCBEPlay | Foxy's Bedrock Dedicated Server System for Windows 10
-# Version: 3.5
-# Made for MC Bedrock Edition 1.14+
+# MCBEPlay | Foxy's Bedrock Dedicated Server System for Windows
+# Version: 3.6-cpx
+# Original work by FoxyNoTail (v3.5, GPL-3.0). See LICENSE and CHANGELOG.md.
 
+## 3.6-cpx
 
+This fork targets current Bedrock Dedicated Server builds, including the 1.26 log format. Stock 3.5 stopped the server at startup because this INFO line contains the letters `error`:
+
+`Profiler config ('bootstrap.json') load result: success=1, errorMessage=(null)`
+
+It also treated a blank health-check line (`Unknown command`) and the `cmd` prompt left after a clean quit as fatal. Details and the new options are in CHANGELOG.md. False-positive handling is adapted from [ZanderCowboy/MCBEPlay](https://github.com/ZanderCowboy/MCBEPlay) (August 2026).
+
+`auto_save` still defaults to false. Live backups use `save hold` / `save query` / `save resume`. BDS-2733 (MANIFEST and `.log` locked during save hold) was closed in 2022: https://mojira.dev/BDS-2733
+
+Automatic BDS updates are off unless `options.txt` sets `auto_update`. There is no telemetry. The Check for Update button uses Mojang's download API (`serverBedrockWindows` only).
+
+### Build
+
+Install AutoIt, then from this folder:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\compile.ps1
+```
+
+That builds `mcbeplay.exe` and `bds.exe` with Aut2Exe and without UPX. GitHub Actions (`.github/workflows/build.yml`) does the same on a Windows runner and uploads both executables. Copy the two executables next to the existing `options.txt`. Do not overwrite `options.txt`, `logs`, or `saves`.
 
 # KNOWN ISSUES #
 ----------------
-Bug BDS-2733
-Link: https://bugs.mojang.com/browse/BDS-2733)
-This bug prevents the system from copying two key world files during a backup whilst the server is running preventing regular backups.
+The rollback option is still the old, unfinished path. Leave `rollback=false`.
+Live backups copy only the files `save query` lists, truncated to the reported sizes. A full world copy still happens when the server stops.
 
 # WHAT IS IT? #
 ---------------

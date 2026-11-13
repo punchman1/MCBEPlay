@@ -1,10 +1,11 @@
 ; Global Variables
-Global $MCBEPlay = "MCBEPlay v3.5"
+Global $MCBEPlay = "MCBEPlay v3.6-cpx"
 Global $options_file = @ScriptDir & "\options.txt"	; Define Name of Options File
 
 ; Icon File
 Global $icon_file = @ScriptDir & "\icon.ico"
-#AutoIt3Wrapper_Icon=$icon_file
+; Icon is embedded by compile.ps1 (/icon). Aut2Exe does not understand
+; #AutoIt3Wrapper directives; SciTE's wrapper does, if you compile from SciTE.
 
 ; Directories
 Global $tmp_dir = @ScriptDir & "\tmp"	; Set Temporary Directory
@@ -60,3 +61,10 @@ Global $chat_triggered = False		; Used for spam prevention
 ; Set max vars
 $max_debug_lines = 30
 $max_console_lines = 100
+
+; BDS auto-update (3.6). Defaults live in inc/options.au3 so a missing key is safe.
+Global $update_check_file = $tmp_dir & "\last_update_check.txt"
+Global $update_fail_file = $tmp_dir & "\update_check_failed.txt"
+Global $updating_file = $tmp_dir & "\updating.txt"
+Global $update_in_progress = False
+Global $update_arm_timer = TimerInit()

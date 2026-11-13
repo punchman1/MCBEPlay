@@ -2,7 +2,7 @@
 
  AutoIt Version: 3.3.14.5
  Author:         FoxyNotail
- Version:Local	 3.5
+ Version:Local	 3.6-cpx
  Date: 			 14/4/02
 
  Script Function:
@@ -29,6 +29,11 @@ If FileExists($working_file) AND Not WinExists($window_title) Then
    FileDelete($error_file)
    FileDelete($command_file)
    FileDelete($response_file)
+EndIf
+
+; A previous update that was killed mid-way must not block keepalive forever.
+If FileExists($updating_file) Then
+   FileDelete($updating_file)
 EndIf
 
 ; Setup GUI

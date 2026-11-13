@@ -59,7 +59,11 @@ Func _BDSCheckResponse()
    Local $function_name = "Check Response"
 
    Local $responsive = True
-   Local $reponse_command = @LF
+   ; A bare newline is not a command. BDS 1.26 logs it at ERROR level as
+   ; "Unknown command:" and that line is fatal if the normal output parser
+   ; sees it (it does, whenever stdout already had another line buffered).
+   ; "list" is a real read-only command and still proves stdin is being read.
+   Local $reponse_command = "list" & @LF
 
    Local $try = 1
    Local $output
@@ -95,13 +99,19 @@ Func _BDSProcessInput()
    Local $function_name = "Process Input"
    If FileExists($command_file) Then
 	  _log("Process Input Function Started", $function_name, False, False)
-	  Local $command = FileRead($command_file)
+	  ; Strip CR/LF. FileWrite plus the extra @LF below used to submit a second,
+	  ; empty command. BDS logs that as "Unknown command: ." at ERROR level.
+	  Local $command = StringStripWS(FileRead($command_file), 3)
 	  FileDelete($command_file)
 	  If StringLen($command)>0 Then
 		 _BDSBusy(True)
 		 Switch $command
 		 Case "stop"
 			_BDSStop(False)  ; True = Restart, False = Shutdown
+		 Case "update-stop"
+			; Clean stop without the built-in world copy. The GUI backs the
+			; world up itself before replacing BDS files.
+			_BDSStop(False, True)
 		 Case "save"
 			_BDSSave(False)
 		 Case "backup"
@@ -252,11 +262,20 @@ EndFunc
 
 Func _BDSCheckError($data)
    Local $function_name = "Check Error"
-   Local $keyword = "ERROR"
-   Local $keylen = StringLen($keyword)
-   Local $pos
-   $pos = StringInStr($data, $keyword, 2)
-   If $pos > 1 Then
+
+   ; BDS 1.26 logs a successful profiler load as INFO, and the text contains
+   ; errorMessage=(null). Stock 3.5 treated any "ERROR" substring as fatal
+   ; (StringInStr is case-insensitive) and killed the server on startup.
+   ; Only a BDS log level of ERROR is fatal. Adapted from the approach in
+   ; ZanderCowboy/MCBEPlay (August 2026).
+   If StringInStr($data, " INFO]", 2) > 0 Then Return
+   ; Same success line, if the level tag is ever missing.
+   If StringInStr($data, "success=1", 2) > 0 And StringInStr($data, "errorMessage=", 2) > 0 Then Return
+   ; Empty stdin is logged as "[ERROR] Unknown command:". That is a bad
+   ; command, not a dead server.
+   If StringInStr($data, "Unknown command:", 2) > 0 Then Return
+
+   If StringInStr($data, " ERROR]", 2) > 0 Or StringInStr($data, "] ERROR]", 2) > 0 Then
 	  _log("Error Found in BDS Output: [" & $data & "]", $function_name, True)
 	  _BDSErrorFile("ERROR")
 	  _BDSExit()
@@ -270,15 +289,20 @@ Func _BDSCheckCrash($data)
    ; Now checking output from GUI for crash logs
 
    Local $function_name = "Check Crash"
-   ;_log("Crash Check", $function_name, False)
-   ; Crashreporter comes after start of crash Log
-   ; First line is [20191113 19:34:36 INFO] Package: .....
-   ;Local $keyword = "CrashReporter"
-   Local $keyword = $server_dir
-   Local $keylen = StringLen($keyword)
-   Local $pos
-   $pos = StringInStr($data, $keyword, 2)
-   If $pos > 0 Then
+   ; Stock 3.5 treated any line containing server_dir as a crash. After a
+   ; clean quit, cmd /K prints a prompt such as C:\MCBEPlay\BDS> and keepalive
+   ; restarted the server. Crash dumps say CrashReporter or EXCEPTION.
+   ; Adapted from ZanderCowboy/MCBEPlay (August 2026).
+   Local $isCrash = False
+   If StringInStr($data, "CrashReporter", 2) > 0 Then $isCrash = True
+   ; Chat and other INFO lines can mention the word. A crash dump does not
+   ; hide EXCEPTION inside an INFO tag.
+   If StringInStr($data, "EXCEPTION", 2) > 0 And StringInStr($data, " INFO]", 2) = 0 Then $isCrash = True
+   If $isCrash = False And StringInStr($data, " INFO]", 2) > 0 Then Return
+   Local $trimmed = StringStripWS($data, 3)
+   If $isCrash = False And StringRight($trimmed, 1) = ">" Then Return
+
+   If $isCrash Then
 	  ; CrashReport Found
 	  _BDSBusy(True)
 	  _BDSErrorFile("CRASH")
