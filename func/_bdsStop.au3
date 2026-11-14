@@ -1,4 +1,4 @@
-Func _BDSStop($restart=False)
+Func _BDSStop($restart=False, $skip_backup=False)
 
    Local $function_name = "Stop Server"
    _log($function_name & " Function Started", $function_name, False, True)
@@ -66,8 +66,11 @@ Func _BDSStop($restart=False)
    WEnd
 
    WinClose($window_title)
-   $iPID = ProcessExists($server_file)		; Just incase process stays open
-   ProcessClose($iPID)
+   _BDSCloseTrackedServer(True)
+   If $PID > 0 And ProcessExists($PID) Then
+	  ProcessClose($PID)
+	  $PID = 0
+   EndIf
    FileDelete($command_file)
    FileDelete($member_file)
    FileDelete($working_file)
@@ -80,9 +83,15 @@ Func _BDSStop($restart=False)
 	  $response = _BDSProcessOutput()
 
 	  ; ### 6/2/20 ADDED NEW SAVE / BACKUP SYSTEM
-	  ; Create full backup while serverfile is not running before Exit
-	  _FullBackup()
-	  sleep(1000)
+	  ; Create full backup while serverfile is not running before Exit.
+	  ; update-stop skips it: the GUI copies the world itself, and a failed
+	  ; _FullBackup tries to move the live world folder.
+	  If $skip_backup = False Then
+		 _FullBackup()
+		 sleep(1000)
+	  Else
+		 _log("Skipping stop-time world backup", $function_name, False, True)
+	  EndIf
 	  _BDSExit()
    EndIf
 

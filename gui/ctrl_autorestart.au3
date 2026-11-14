@@ -9,7 +9,18 @@ GUICtrlSetFont($autorestart_label, 8.5, 600 ,0)
 $restart_label = GUICtrlCreateLabel("Restarting in 0h 0m 0s", $left+($column/2), $top, $column/2, $row, $SS_RIGHT)
 GUICtrlSetFont($restart_label, 8.5, 400 ,0)
 
-If $auto_restart == "interval" Then
+If _BDSAutoRestartEnabled() = False Then
+
+   GUICtrlSetData($restart_label, "Off")
+   $top = $top + $row
+   $lr_label = GUICtrlCreateLabel("Auto restart is off", $left, $top, $column, $row)
+   GUICtrlSetFont($lr_label, 8.5, 400 ,0)
+   $top = $top + $row
+   $nr_label = GUICtrlCreateLabel("auto_restart=off or restart_interval=0", $left, $top, $column, $row)
+   GUICtrlSetFont($nr_label, 8.5, 400 ,0)
+   $top = $top + $row
+
+ElseIf StringLower($auto_restart) = "interval" Then
 
    $top = $top + $row
    $restartinterval_label = GUICtrlCreateLabel("Restart Interval: Every " & $restart_interval & " hours", $left, $top, $column, $row)

@@ -32,30 +32,21 @@ keep_saves=2
 # Keep Daily Saves for X number of Days (0 = don't keep daily saves)
 keep_daily_saves=5
 
-################# WARNING ####################
-# The AutoSave System should be turned off until Mojang fixes the BDS-2733 bug
-# preventing the MANIFEST and LOG files from being saved while the server is running.
-# Bug Tracker Link: https://bugs.mojang.com/browse/BDS-2733
+################# AUTO SAVE ####################
+# Live backups use save hold, save query, and save resume.
+# Modern save query lists files as WorldName/db/file:size (relative to worlds/).
+# MCBEPlay copies each listed file, then truncates the copy to that size.
 #
-# This means that your world will only be properly backed up when the
-# server restarts using the auto restart system.
-# Once this bug is fixed I would recommend setting
-# auto_save to true and the save_interval and backup_intervals to 60 minutes.
+# BDS-2733 (MANIFEST and .log locked during save hold) was closed in 2022.
+# It is not a reason to avoid live backups anymore.
+# https://mojira.dev/BDS-2733
 #
-# How this currently works: If auto_save is set to true,
-# the system will run the "save hold" command on the server
-# at the interval set by save_interval.
-# It will also copy the world files to the saves directory (above)
-# during the save process when the backup_interval is reached.
+# auto_save still defaults to false. Set it to true to flush the world every
+# save_interval minutes, and to take a live backup when backup_interval has
+# elapsed. Both values are minutes.
 #
-# So basically, the save_interval determines how often the database
-# is "saved" (not backed up) and the backup_interval determines how
-# often the game makes a backup during the save process.
-#
-# Currently this does not work do to the bug, and the MANIFEST and LOG
-# files fail to copy resulting in errors.
-# This system is only needed in case of a major crash that affects
-# the world database which is extremely unlikely to occur.
+# save_interval is how often the database is saved.
+# backup_interval is how often a backup is taken during that save.
 
 # Auto Save System: Saves every x minutes
 auto_save=false
@@ -64,19 +55,20 @@ auto_save=false
 save_interval=60
 
 # Auto Backup Interval (Minutes)
-# How often the game makes a full backup (MANIFEST / .log File Copy Bug as of 6/2/20 making backups void)
+# How often a live backup is taken during a save (minutes)
 backup_interval=60
 
 ########################################
 
 # Auto Restart System
-# Options: interval|time
-# Setting auto_restart to "interval" will make the server restart every "restart_interval" hours.
-# Setting it to "time" will make the server restart at the times specified in "restart_times".
+# Options: time|interval|off
+# time: restart at the times in restart_times.
+# interval: restart every restart_interval hours. restart_interval=0 disables this.
+# off, false, or none: do not schedule restarts.
 auto_restart=time
 
 # If you would prefer the server to restart at specific intervals, then set the number of hours between restarts.
-# Integer: restart every X hours				
+# Integer: restart every X hours. 0 disables interval restarts.
 restart_interval=12
 
 # If you would prefer the server to restart at specific times of day then use the time option and list the times here
@@ -100,3 +92,27 @@ keepalive=false
 # The failed world is backed up in the saves folder prefix FAILED_ before overwriting
 # The rolled back save is prefixed with ROLLBACK_ to identify which save was used
 rollback=false
+
+################# BDS UPDATES ####################
+# Optional updates from Mojang's official download API. Off by default.
+# There is no telemetry. A check runs only when this is enabled, or when
+# Check for Update is clicked. The only request is the download-link API.
+#
+# auto_update:
+#   false     - do not check automatically (default)
+#   interval  - check every update_interval hours
+#   time      - check once a day, at or after update_time (HH:MM)
+#   true      - same as interval
+# A newer Windows stable build warns players, stops the server, copies the
+# world into the saves folder, and replaces server binaries and resources.
+# The worlds folder, server.properties, allowlist.json, whitelist.json, permissions.json
+# and packetlimitconfig.json are kept. On failure the previous install is
+# restored and, if it was running, started again.
+
+auto_update=false
+
+# Hours between checks when auto_update=interval (minimum 1)
+update_interval=24
+
+# Time of day (HH:MM) when auto_update=time
+update_time=04:00

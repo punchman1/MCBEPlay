@@ -27,12 +27,13 @@ Func _purgeFolders($directory, $keep_time)
    _log($function_name & " Function Started", $function_name)
 
    Local $items = _FileListToArray($directory, "*", $FLTA_FOLDERS, True)
-   For $i = 1 To UBound($items)-1
+   If Not IsArray($items) Then Return
+   For $i = 1 To $items[0]
 	  Local $lDate = FileGetTime($items[$i], $FT_CREATED)
 	  Local $date = $lDate[0]&"/"&$lDate[1]&"/"&$lDate[2]&" "&$lDate[3]&":"&$lDate[4]&":"&$lDate[5]
 	  If _DateDiff("D", $date, _NowCalc()) > $keep_time Then
-		 _log("Removing Folder: " & $items[$l], $function_name, False, True)
-		 DirRemove($items[$l], 1)
+		 _log("Removing Folder: " & $items[$i], $function_name, False, True)
+		 DirRemove($items[$i], 1)
 	  EndIf
    Next
 EndFunc

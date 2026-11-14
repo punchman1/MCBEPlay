@@ -14,3 +14,4 @@
 #include "..\func\_action.au3"
 #include "..\func\_houseKeeping.au3"
 #include "..\func\_fullBackup.au3"
+#include "..\func\_bdsUpdate.au3"

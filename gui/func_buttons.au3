@@ -133,7 +133,7 @@ Func _guiReloadWhitelistButton()
    If $server_status = False Then
 	  MsgBox(48, "Alert", "The Server is not running")
    Else
-	  $t = MsgBox(4, "Wait...", "Are you sure you want to reload the whitelist?")
+	  $t = MsgBox(4, "Wait...", "Reload the allowlist now?" & @CRLF & "This runs allowlist reload on the server (whitelist reload before BDS 1.18.10).")
 	  If $t = 6 Then
 		 _actionReloadWhitelist()
 	  EndIf
@@ -159,6 +159,21 @@ Func _guiReloadPermissionsButton()
 		 _actionReloadPermissions()
 	  EndIf
    EndIf
+EndFunc
+
+; Check for a newer official Windows BDS build
+Func _guiCheckUpdateButton()
+
+   Local $function_name = "Check for Update"
+   _log($function_name & " Clicked", $function_name, False, True)
+
+   If $update_in_progress Or $server_working = True Then
+	  MsgBox(48, "Alert", " The server is busy")
+	  _log("Action cancelled as server is busy", $function_name, True)
+	  Return False
+   EndIf
+
+   _actionCheckForUpdate(True)
 EndFunc
 
 ; Open Folder Button

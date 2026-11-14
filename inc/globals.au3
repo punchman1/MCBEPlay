@@ -1,10 +1,11 @@
 ; Global Variables
-Global $MCBEPlay = "MCBEPlay v3.5"
+Global $MCBEPlay = "MCBEPlay v3.6-cpx"
 Global $options_file = @ScriptDir & "\options.txt"	; Define Name of Options File
 
 ; Icon File
 Global $icon_file = @ScriptDir & "\icon.ico"
-#AutoIt3Wrapper_Icon=$icon_file
+; Icon is embedded by compile.ps1 (/icon). Aut2Exe does not understand
+; #AutoIt3Wrapper directives; SciTE's wrapper does, if you compile from SciTE.
 
 ; Directories
 Global $tmp_dir = @ScriptDir & "\tmp"	; Set Temporary Directory
@@ -40,7 +41,10 @@ Global $timestamp = @YEAR&@MON&@MDAY&@HOUR&@MIN&@SEC ; YYYYMMDDHHMMSS
 Global $server_status = False 		; False = Offline, True = Online
 Global $server_error = False		; False = No Error, Other = Get from error file ERROR, CRASH, UNRESPONSIVE
 Global $server_working = False		; False = Idle, True = Working
-Global $PID							; Process ID Of Server
+Global $PID = 0						; cmd.exe started by this instance (stdin/stdout)
+Global $server_pid = 0				; bedrock_server.exe PID spawned by this instance
+Global $server_pid_file = $tmp_dir & "\server.pid"
+Global $save_hold_active = False	; True between save hold and save resume
 Global $members_online = 0			; Number of players connected
 Global $members_online_last = 0		; For checking if a member has just joined or left (autosave)
 Global $min_save_time = 2			; Minutes since last save when a new save is allowed to trigger
@@ -60,3 +64,10 @@ Global $chat_triggered = False		; Used for spam prevention
 ; Set max vars
 $max_debug_lines = 30
 $max_console_lines = 100
+
+; BDS auto-update (3.6). Defaults live in inc/options.au3 so a missing key is safe.
+Global $update_check_file = $tmp_dir & "\last_update_check.txt"
+Global $update_fail_file = $tmp_dir & "\update_check_failed.txt"
+Global $updating_file = $tmp_dir & "\updating.txt"
+Global $update_in_progress = False
+Global $update_arm_timer = TimerInit()

@@ -1,0 +1,45 @@
+name: Build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install AutoIt
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $aut2exe = "${env:ProgramFiles(x86)}\AutoIt3\Aut2Exe\Aut2exe.exe"
+          if (-not (Test-Path -LiteralPath $aut2exe)) {
+            choco install autoit --version=3.3.16.1 -y --no-progress --limit-output
+          }
+          if (-not (Test-Path -LiteralPath $aut2exe)) {
+            $setup = Join-Path $env:RUNNER_TEMP "autoit-setup.exe"
+            $url = "https://www.autoitscript.com/cgi-bin/getfile.pl?autoit3/autoit-v3.3.16.1-setup.exe"
+            Invoke-WebRequest -Uri $url -OutFile $setup -UseBasicParsing
+            Start-Process -FilePath $setup -ArgumentList "/S" -Wait
+          }
+          if (-not (Test-Path -LiteralPath $aut2exe)) {
+            Get-ChildItem -Path "${env:ProgramFiles(x86)}", "$env:ProgramFiles" -Filter Aut2exe.exe -Recurse -ErrorAction SilentlyContinue |
+              Select-Object -ExpandProperty FullName
+            throw "Aut2Exe was not installed"
+          }
+          Write-Host "Aut2Exe: $aut2exe"
+
+      - name: Compile
+        shell: pwsh
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File .\compile.ps1
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mcbeplay-3.6-cpx
+          path: |
+            mcbeplay.exe
+            bds.exe
+          if-no-files-found: error

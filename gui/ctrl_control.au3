@@ -39,8 +39,9 @@ $button_properties = GUICtrlCreateButton("Server Properties", $left+($column/2)+
 GUICtrlSetOnEvent($button_properties, "_guiOpenProperties")
 
 $top = $top + $row + $margin
-$button_whitelist = GUICtrlCreateButton("Reload Whitelist", $left, $top, ($column/2)-5)
+$button_whitelist = GUICtrlCreateButton("Reload Allowlist", $left, $top, ($column/2)-5)
 GUICtrlSetOnEvent($button_whitelist, "_guiReloadWhitelistButton")
+GUICtrlSetTip($button_whitelist, "Runs allowlist reload (whitelist reload on BDS before 1.18.10)")
 $button_permissions = GUICtrlCreateButton("Reload Permissions [Broken]", $left+($column/2)+5, $top, ($column/2)-5)
 GUICtrlSetOnEvent($button_permissions, "_guiReloadPermissionsButton")
 
@@ -49,6 +50,11 @@ $button_logs = GUICtrlCreateButton("View Logs", $left, $top, ($column/2)-5)
 GUICtrlSetOnEvent($button_logs, "_guiOpenLogs")
 $button_saves = GUICtrlCreateButton("View Saves", $left+($column/2)+5, $top, ($column/2)-5)
 GUICtrlSetOnEvent($button_saves, "_guiOpenSaves")
+
+$top = $top + $row + $margin
+$button_update = GUICtrlCreateButton("Check for Update", $left, $top, $column)
+GUICtrlSetOnEvent($button_update, "_guiCheckUpdateButton")
+GUICtrlSetTip($button_update, "Compare the installed bedrock_server.exe with Mojang's latest Windows BDS")
 
 $top = $top + $row + $margin
 GUICtrlCreateGraphic($left, $top, $column, 1, $SS_GRAYRECT)

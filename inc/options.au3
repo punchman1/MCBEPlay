@@ -1,3 +1,9 @@
+; Defaults for options added in 3.6. _optionsGet() overwrites these when the
+; key is present, so an existing options.txt keeps working if the keys are missing.
+Global $auto_update = "false"
+Global $update_interval = "24"
+Global $update_time = "04:00"
+
 ; Get Options from Options File
 _optionsGet($options_file)
 

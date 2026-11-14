@@ -13,9 +13,14 @@ If TimerDiff($aTimer) > 1000 Then 		; Do something every 1 second
 	  _autoRestart()
    EndIf
    If $server_error = "CRASH" Then
-	  sleep(2000)
-	  _runScript("bds")
-	  _log("Crash Restart Triggered", "GUI SYSTEM", False, True)
+	  ; A BDS update stops the helper on purpose. Do not race it with a crash restart.
+	  If $update_in_progress Or FileExists($updating_file) Then
+		 _log("Crash restart skipped during BDS update", "GUI SYSTEM", False, True)
+	  Else
+		 sleep(2000)
+		 _runScript("bds")
+		 _log("Crash Restart Triggered", "GUI SYSTEM", False, True)
+	  EndIf
    EndIf
 
    $aTimer = TimerInit()
@@ -25,6 +30,7 @@ EndIf
 If TimerDiff($bTimer) > 10000 Then 		; Do something every 10 seconds
 
    _actionKeepAlive()		; If server isn't running then start it - Careful this isn't triggered during rollback / restart actions
+   _actionAutoUpdate()
    $bTimer = TimerInit()
 EndIf
 
